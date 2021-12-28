@@ -1,5 +1,3 @@
-datetime.py
-random.py
 math.py
 discord.py
 asyncio.py
