@@ -15,11 +15,13 @@ cur.execute("CREATE TABLE IF NOT EXISTS User_Info(id INTEGER PRIMARY KEY, coin I
 
 arr = []
 brr = []
+ttt = []
+cntk = 0
+prevvi = 100000
 moneyhave = 10000000
 coinhave = 0
 coinp = 100000
 flag = True
-app = discord.Client()
 
 token = "OTE0NTExNzQ0MjE3NTM0NDY0.YaOHbg.bpaUxI0sff9Jep1SQhxOYvVTu44"
 
@@ -38,10 +40,6 @@ def checkuser(id):
         return 1
     con.close()
 
-@bot.event
-async def on_ready():
-    await bot.change_presence(status=discord.Status.online, activity=discord.Game('HRX COIN!'))
-    print('[DEBUG]=================\nbot status : on\n=================')
 
 @bot.event
 async def on_message(msg):
@@ -50,29 +48,40 @@ async def on_message(msg):
 
 @bot.event
 async def on_ready():
-    global arr, brr
+    global arr, cntk, ttt, prevvi
     global coinp
+    await bot.change_presence(status=discord.Status.online, activity=discord.Game('HRX COIN!'))
+    print('[DEBUG]=================\nbot status : on\n=================')
+    channel = bot.get_channel(id=916560954853032009)
     while True:
-        y = random.randint(0, 5)
-        if(y==0):
-            coinp-=800
-        if(y==1):
-            coinp-=400
-        if(y==2):
-            coinp+=400
-        if(y==3):
-            coinp+=800
-        if (y == 4):
-            coinp += 1200
-        if (y == 5):
-            coinp -= 1200
+        y = random.randint(-1000,1000)
+        coinp += y
+        coinp = min(200000, coinp)
+        coinp = max(10000, coinp)
         arr.append(coinp)
-        if(len(arr)>=5):
-            brr.append((arr[len(arr)-1]+arr[len(arr)-2]+arr[len(arr)-3]+arr[len(arr)-4]+arr[len(arr)-5])/5)
+        ttt.append(cntk)
+        cntk+=1
+        now = datetime.now()
+        if(coinp >= int(prevvi*1.1)):
+            embed = discord.Embed(title='HRX코인 거래소',
+                                  description='상승성완화(UL) 발동!\n과도한 상승을 막기위해 1분간 가격변동을 제한합니다.',
+                                  colour=0xD0F5A9)
+            embed.add_field(name='> 현재가', value='{}원'.format(format(coinp, ",")))
+            embed.set_footer(text='기준일시 : {}시 {}분 {}초'.format(now.hour, now.minute, now.second))
+            await channel.send(embed=embed)
+            await asyncio.sleep(60)
+            prevvi = coinp
+        elif(coinp <= int(prevvi*0.9)):
+            embed = discord.Embed(title='HRX코인 거래소',
+                                  description='하락성완화(DL) 발동!\n과도한 하락을 막기위해 1분간 가격변동을 제한합니다.',
+                                  colour=0x0080FF)
+            embed.add_field(name='> 현재가', value='{}원'.format(format(coinp, ",")))
+            embed.set_footer(text='기준일시 : {}시 {}분 {}초'.format(now.hour, now.minute, now.second))
+            await channel.send(embed=embed)
+            await asyncio.sleep(60)
+            prevvi = coinp
         else:
-            brr.append(sum(arr)/len(arr))
-
-        await asyncio.sleep(3)
+            await asyncio.sleep(30)
 
 @bot.command()
 async def 가입신청(ctx):
@@ -102,10 +111,10 @@ async def 탈퇴(ctx):
 @bot.command()
 async def 지갑(ctx):
     await ctx.channel.send(f'{ctx.message.author.mention}')
-    id = ctx.author.id
+    tid = ctx.author.id
     con = sqlite3.connect(r'Test.db', isolation_level=None)
     cur = con.cursor()
-    chk = checkuser(id)
+    chk = checkuser(tid)
     if (chk == 0):
         embed = discord.Embed(title='HRX코인 거래소',
                               description=f'{ctx.message.author.mention}님의 지갑현황을 조회할 수 없습니다.',
@@ -113,14 +122,14 @@ async def 지갑(ctx):
         embed.add_field(name='> 실패사유', value='DB에 정보가 없습니다.\n!가입신청 을 입력해주세요.')
         await ctx.channel.send(embed=embed)
     elif (chk == 1):
-        cur.execute("SELECT money FROM User_Info WHERE id = id")
+        cur.execute("SELECT money FROM User_Info WHERE id = ?", (tid, ))
         k1 = int(cur.fetchone()[0])
-        cur.execute("SELECT coin FROM User_Info WHERE id = id")
+        cur.execute("SELECT coin FROM User_Info WHERE id = ?", (tid, ))
         k2 = int(cur.fetchone()[0])
         embed = discord.Embed(title='HRX코인 거래소',
                               description=f'{ctx.message.author.mention}님의 지갑현황입니다.',
                               colour=0xD0F5A9)
-        embed.add_field(name='> 지갑현황', value='HRX : {}개\n잔고 : {}원'.format(k2, k1))
+        embed.add_field(name='> 지갑현황', value='HRX : {}개\n잔고 : {}원\n추정자산 : {}원'.format(format(k2, ","), format(k1, ","), format(k2*coinp + k1, ",")))
         await ctx.channel.send(embed=embed)
     con.close()
 
@@ -131,7 +140,7 @@ async def 코인시세(ctx):
     embed = discord.Embed(title='HRX코인 거래소',
                           description='현재 HRX코인 시세를 알려드립니다.',
                           colour=0xD0F5A9)
-    embed.add_field(name='> 현재가', value='{}원'.format(coinp))
+    embed.add_field(name='> 현재가', value='{}원'.format(format(coinp,",")))
     embed.set_footer(text='기준일시 : {}시 {}분 {}초'.format(now.hour, now.minute, now.second))
     await ctx.channel.send(embed=embed)
 
@@ -140,10 +149,10 @@ async def 코인매수(ctx, *input):
     now = datetime.now()
     await ctx.channel.send(f'{ctx.message.author.mention}')
     try:
-        id = ctx.author.id
+        tid = ctx.author.id
         con = sqlite3.connect(r'Test.db', isolation_level=None)
         cur = con.cursor()
-        chk = checkuser(id)
+        chk = checkuser(tid)
         if (chk == 0):
             embed = discord.Embed(title='HRX코인 거래소',
                                   description=f'{ctx.message.author.mention}님의 거래결과를 알려드립니다.',
@@ -153,7 +162,7 @@ async def 코인매수(ctx, *input):
             embed.set_footer(text='거래일시 : {}시 {}분 {}초'.format(now.hour, now.minute, now.second))
             await ctx.channel.send(embed=embed)
         elif (chk == 1):
-            cur.execute("SELECT money FROM User_Info WHERE id = id")
+            cur.execute("SELECT money FROM User_Info WHERE id = ?", (tid, ))
             k = int(cur.fetchone()[0])
             r = int(input[0])
             if(r==0):
@@ -164,7 +173,7 @@ async def 코인매수(ctx, *input):
                 embed.add_field(name='> 실패사유', value='입력에 불필요한 입력이 있습니다.\n숫자 또는 1 이상의 숫자만 입력해주세요.')
                 embed.set_footer(text='거래일시 : {}시 {}분 {}초'.format(now.hour, now.minute, now.second))
                 await ctx.channel.send(embed=embed)
-            elif(k/r <= 0):
+            elif(k/r <= 0 or k-coinp*r<0):
                 embed = discord.Embed(title='HRX코인 거래소',
                                       description=f'{ctx.message.author.mention}님의 거래결과를 알려드립니다.',
                                       colour=0xFA5858)
@@ -177,19 +186,19 @@ async def 코인매수(ctx, *input):
                 con.close()
                 con = sqlite3.connect(r'Test.db', isolation_level=None)
                 cur = con.cursor()
-                cur.execute("UPDATE User_info SET money = money + ? WHERE id = id", (int(kk),))
-                cur.execute("UPDATE User_info SET coin = coin + ? WHERE id = id", (int(r),))
-                cur.execute("SELECT money FROM User_Info WHERE id = id")
+                cur.execute("UPDATE User_info SET money = money + ? WHERE id = ?", (int(kk),tid,))
+                cur.execute("UPDATE User_info SET coin = coin + ? WHERE id = ?", (int(r),tid,))
+                cur.execute("SELECT money FROM User_Info WHERE id = ?", (tid, ))
                 m1 = int(cur.fetchone()[0])
-                cur.execute("SELECT coin FROM User_Info WHERE id = id")
+                cur.execute("SELECT coin FROM User_Info WHERE id = ?", (tid, ))
                 c1 = int(cur.fetchone()[0])
                 embed = discord.Embed(title='HRX코인 거래소',
                                       description=f'{ctx.message.author.mention}님의 거래결과를 알려드립니다.',
                                       colour=0xD0F5A9)
                 embed.add_field(name='> 거래여부', value='성공')
-                embed.add_field(name='> 현재가', value='{}원'.format(coinp))
-                embed.add_field(name='> 거래개수', value='{}개'.format(int(input[0])))
-                embed.add_field(name='> 지갑현황', value='HRX : {}개\n잔고 : {}원'.format(c1, m1))
+                embed.add_field(name='> 현재가', value='{}원'.format(format(coinp, ",")))
+                embed.add_field(name='> 거래개수', value='{}개'.format(format(int(input[0]), ",")))
+                embed.add_field(name='> 지갑현황', value='HRX : {}개\n잔고 : {}원'.format(format(c1, ","), format(m1, ",")))
                 embed.set_footer(text='거래일시 : {}시 {}분 {}초'.format(now.hour, now.minute, now.second))
                 await ctx.channel.send(embed=embed)
     except:
@@ -207,10 +216,10 @@ async def 코인매도(ctx, *input):
     now = datetime.now()
     await ctx.channel.send(f'{ctx.message.author.mention}')
     try:
-        id = ctx.author.id
+        tid = ctx.author.id
         con = sqlite3.connect(r'Test.db', isolation_level=None)
         cur = con.cursor()
-        chk = checkuser(id)
+        chk = checkuser(tid)
         if (chk == 0):
             embed = discord.Embed(title='HRX코인 거래소',
                                   description=f'{ctx.message.author.mention}님의 거래결과를 알려드립니다.',
@@ -220,7 +229,7 @@ async def 코인매도(ctx, *input):
             embed.set_footer(text='거래일시 : {}시 {}분 {}초'.format(now.hour, now.minute, now.second))
             await ctx.channel.send(embed=embed)
         elif (chk == 1):
-            cur.execute("SELECT coin FROM User_Info WHERE id = id")
+            cur.execute("SELECT coin FROM User_Info WHERE id = ?", (tid, ))
             k = int(cur.fetchone()[0])
             r = int(input[0])
             if(r==0):
@@ -244,19 +253,19 @@ async def 코인매도(ctx, *input):
                 con.close()
                 con = sqlite3.connect(r'Test.db', isolation_level=None)
                 cur = con.cursor()
-                cur.execute("UPDATE User_info SET money = money + ? WHERE id = id", (int(kk),))
-                cur.execute("UPDATE User_info SET coin = coin + ? WHERE id = id", (int(-r),))
-                cur.execute("SELECT money FROM User_Info WHERE id = id")
+                cur.execute("UPDATE User_info SET money = money + ? WHERE id = ?", (int(kk), tid, ))
+                cur.execute("UPDATE User_info SET coin = coin + ? WHERE id = ?", (int(-r), tid, ))
+                cur.execute("SELECT money FROM User_Info WHERE id = ?", (tid, ))
                 m1 = int(cur.fetchone()[0])
-                cur.execute("SELECT coin FROM User_Info WHERE id = id")
+                cur.execute("SELECT coin FROM User_Info WHERE id = ?", (tid, ))
                 c1 = int(cur.fetchone()[0])
                 embed = discord.Embed(title='HRX코인 거래소',
                                       description=f'{ctx.message.author.mention}님의 거래결과를 알려드립니다.',
                                       colour=0xD0F5A9)
                 embed.add_field(name='> 거래여부', value='성공')
-                embed.add_field(name='> 현재가', value='{}원'.format(coinp))
-                embed.add_field(name='> 거래개수', value='{}개'.format(int(input[0])))
-                embed.add_field(name='> 지갑현황', value='HRX : {}개\n잔고 : {}원'.format(c1, m1))
+                embed.add_field(name='> 현재가', value='{}원'.format(format(coinp, ",")))
+                embed.add_field(name='> 거래개수', value='{}개'.format(format(int(input[0]), ",")))
+                embed.add_field(name='> 지갑현황', value='HRX : {}개\n잔고 : {}원'.format(format(c1, ","), format(m1, ",")))
                 embed.set_footer(text='거래일시 : {}시 {}분 {}초'.format(now.hour, now.minute, now.second))
                 await ctx.channel.send(embed=embed)
     except:
@@ -271,14 +280,17 @@ async def 코인매도(ctx, *input):
 
 @bot.command()
 async def 코인차트(ctx):
-    plt.title('Haru Coin Price Graph')
-    plt.plot(kind='area')
-    plt.plot(figsize=(30, 7))
-    plt.plot(arr, 'gray')
-    plt.plot(brr, 'r--')
+    plt.figure(figsize=(6.5, 5))
+    plt.fill_between(ttt, arr, color='blue', alpha=0.3)
+    plt.axhline(arr[len(arr)-1], 0, 1, color='lightgray', linestyle='--', linewidth=2)
+    plt.axhline(int(prevvi*1.1), 0, 1, color='red', linestyle='--', linewidth=2)
+    plt.axhline(int(prevvi*0.9), 0, 1, color='blue', linestyle='--', linewidth=2)
+    plt.xlim(max(len(arr)-50, 0), len(arr))
+    plt.ylim(coinp-15000, coinp+15000)
     plt.xlabel('time')
     plt.ylabel('price')
-    plt.legend(['price', 'average'])
+    plt.legend(['now_price', 'UL', 'DL', 'price'])
+    plt.title('Haru Coin Price Graph')
     plt.grid(True)
     plt.savefig(fname='plot')
     await ctx.channel.send(file=discord.File('plot.png'))
