@@ -1,4 +1,3 @@
 discord.py
-asyncio.py
 matplotlib.py
 sqlite3.py
