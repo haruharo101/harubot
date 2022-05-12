@@ -23,7 +23,7 @@ coinhave = 0
 coinp = 100000
 flag = True
 
-token = "OTE0NTExNzQ0MjE3NTM0NDY0.YaOHbg.bpaUxI0sff9Jep1SQhxOYvVTu44"
+token = 
 
 def checkuser(id):
     alr_exist = []
@@ -52,7 +52,7 @@ async def on_ready():
     global coinp
     await bot.change_presence(status=discord.Status.online, activity=discord.Game('HRX COIN!'))
     print('[DEBUG]=================\nbot status : on\n=================')
-    channel = bot.get_channel(id=916560954853032009)
+    channel = bot.get_channel(id=)
     while True:
         y = random.randint(-1000,1000)
         coinp += y
